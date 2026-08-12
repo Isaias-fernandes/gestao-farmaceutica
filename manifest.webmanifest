@@ -1,0 +1,11 @@
+{
+  "name": "Gestão Farmacêutica Online",
+  "short_name": "Gestão Farma",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0f5b4f",
+  "description": "Gestão compartilhada de pacientes, prescrições, estoque e pedidos.",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

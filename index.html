@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f5b4f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg">
+<title>Gestão Farmacêutica Online</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#1f2937;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}.top{background:#0f5b4f;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:0;z-index:2}.wrap{max-width:1200px;margin:auto;padding:20px}.card{background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.stat{font-size:28px;font-weight:700}button,.btn{display:inline-block;background:#0f5b4f;color:#fff;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;text-decoration:none}button.secondary,.btn.secondary{background:#64748b}button.whatsapp,.btn.whatsapp{background:#128c4a}button.danger{background:#b91c1c}input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:7px;margin:4px 0 9px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:10px;background:#e2e8f0}.warn{background:#fff7ed;border-left:4px solid #f97316;padding:12px}.ok{background:#ecfdf5;border-left:4px solid #10b981;padding:12px}.login{max-width:460px;margin:6vh auto}.small{font-size:12px;color:#64748b}.actions{display:flex;gap:8px;flex-wrap:wrap}.install-card{border:1px solid #dbeafe}@media(max-width:650px){.wrap{padding:12px}.top{padding:12px}.card{padding:14px}table{display:block;overflow-x:auto;white-space:nowrap}nav button{flex:1 1 44%;}.stat{font-size:24px}}@media print{.no-print,nav,.top button{display:none!important}.card{box-shadow:none}.wrap{max-width:none}}
+</style></head>
+<body>
+<div class="top"><b>Gestão Farmacêutica Online</b><div><span id="who"></span> <button id="logout" class="secondary hidden">Sair</button></div></div>
+<div class="wrap">
+<section id="loginBox" class="card login">
+<h2>Acesso</h2><div id="cfgWarn" class="warn hidden">Configure o arquivo <b>config.js</b> com a URL e a chave pública do Supabase.</div>
+<label>E-mail</label><input id="email" type="email" autocomplete="username"><label>Senha</label><input id="senha" type="password" autocomplete="current-password"><button id="loginBtn">Entrar</button>
+<hr><h3>Primeiro acesso de um gestor</h3><p class="small">O usuário cria a conta e ela fica <b>pendente</b> até o Administrador Geral aprovar. Depois da aprovação, o botão do grupo de WhatsApp fica disponível automaticamente.</p>
+<label>Nome</label><input id="nomeCadastro" autocomplete="name"><label>Celular / WhatsApp</label><input id="telefoneCadastro" inputmode="tel" placeholder="Ex.: 31999999999" autocomplete="tel"><label>E-mail</label><input id="emailCadastro" type="email" autocomplete="email"><label>Senha</label><input id="senhaCadastro" type="password" autocomplete="new-password"><button id="signupBtn">Criar conta</button><p id="signupHelp" class="small">Preencha os 4 campos. O botão ficará pronto para cadastro.</p><p id="loginMsg"></p>
+</section>
+<section id="app" class="hidden">
+<div id="pending" class="warn hidden">Seu acesso ainda não foi aprovado pelo Administrador Geral.</div>
+<nav id="nav" class="no-print hidden">
+<button data-page="painel">Painel</button><button data-page="pacientes">Pacientes</button><button data-page="medicamentos">Medicamentos</button><button data-page="estoque">Estoque</button><button data-page="prescricoes">Prescrições</button><button data-page="dispensacao">Dispensação</button><button data-page="pedidos">Pedidos</button><button data-page="equipe">Equipe</button><button data-page="usuarios" id="btnUsuarios">Usuários</button><button data-page="auditoria" id="btnAudit">Auditoria</button>
+</nav>
+<div id="content"></div>
+</section>
+</div>
+<script src="config.js"></script>
+<script>
+window.__APP_MODULE_STARTED=false;
+window.addEventListener('DOMContentLoaded',()=>{
+  const btn=document.getElementById('signupBtn');
+  const ids=['nomeCadastro','telefoneCadastro','emailCadastro','senhaCadastro'];
+  const refresh=()=>{
+    const ok=ids.every(id=>document.getElementById(id).value.trim().length>0);
+    btn.style.opacity=ok?'1':'0.65';
+    document.getElementById('signupHelp').textContent=ok?'Campos preenchidos. Clique em Criar conta.':'Preencha nome, celular/WhatsApp, e-mail e senha.';
+  };
+  ids.forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+  refresh();
+  setTimeout(()=>{
+    if(!window.__APP_MODULE_STARTED){
+      document.getElementById('loginMsg').textContent='O módulo do aplicativo não carregou. Atualize a página. Se persistir, verifique a conexão com a internet.';
+    }
+  },5000);
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js?v=4"></script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
+</body></html>
