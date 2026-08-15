@@ -1,0 +1,16 @@
+GESTÃO FARMACÊUTICA V6
+
+1. Execute ATUALIZACAO_CADASTRO_MEDICAMENTOS_V6.sql no SQL Editor do Supabase.
+2. Depois envie app.js e sw.js atualizados para o GitHub.
+3. Aguarde o GitHub Pages concluir o novo deploy.
+4. Feche e abra novamente o aplicativo para receber o cache V6.
+
+Novos campos no cadastro de medicamentos:
+- Nome
+- Dosagem
+- Forma farmacêutica
+- Unidade de estoque/pedido
+- Apresentação / embalagem
+- Quantidade por embalagem
+- Estoque mínimo
+- Estoque ideal
