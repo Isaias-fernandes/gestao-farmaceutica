@@ -1,0 +1,19 @@
+GESTÃO FARMACÊUTICA ONLINE - V11
+
+NOVIDADE
+- Na tela Estoque > Entrada de estoque por nota fiscal foi acrescentado o botão:
+  + Cadastrar medicamento desta nota
+- Permite cadastrar um medicamento que chegou na nota e ainda não existe no sistema.
+- Campos: nome, dosagem, forma farmacêutica, unidade de estoque, apresentação, estoque mínimo e estoque ideal.
+- Após salvar, o novo medicamento é selecionado automaticamente para informar lote, validade e quantidade recebida.
+- Mantém todas as funções da V10.
+
+SUPABASE
+- NÃO é necessário executar SQL novo para esta atualização, pois utiliza a tabela medications já existente.
+
+GITHUB
+- Substitua app.js e sw.js pelos arquivos desta V11.
+- Faça Commit changes e aguarde o GitHub Pages concluir o deploy.
+
+IMPORTANTE
+- Não apague nem execute novamente os SQLs antigos.
