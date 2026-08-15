@@ -1,0 +1,14 @@
+GESTÃO FARMACÊUTICA ONLINE - V7
+
+ALTERAÇÃO PRINCIPAL
+- Removido do aplicativo o campo 'Quantidade por embalagem'.
+- 'Unidade de controle' passa a se chamar 'Unidade de estoque'.
+- Exemplos de unidade: Comprimido, Cápsula, Frasco, Ampola, Sachê, Tubo, Bisnaga, Unidade, mL, Gota, Dose.
+- A quantidade real é registrada em ESTOQUE, na entrada do medicamento.
+- Pedidos automáticos e medicamentos por paciente continuam usando a mesma unidade cadastrada no medicamento.
+
+IMPORTANTE
+- Não é necessário apagar a coluna quantidade_embalagem do Supabase. Ela fica como campo legado e não é mais usada.
+- Nenhum dado existente é apagado.
+- Para atualizar o site, envie app.js e sw.js da V7 ao GitHub e faça Commit changes.
+- Se desejar registrar o comentário no banco, execute ATUALIZACAO_V7_UNIDADE_ESTOQUE.sql; é opcional e não altera dados.
