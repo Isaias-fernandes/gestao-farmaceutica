@@ -1,0 +1,9 @@
+GESTAO FARMACEUTICA V8
+
+NOVO EM MEDICAMENTOS:
+- Botao Corrigir: permite editar nome, dosagem, forma farmaceutica, unidade de estoque, apresentacao, estoque minimo e estoque ideal.
+- Botao Excluir: desativa o medicamento (ativo=false) para preservar historico de estoque, prescricoes, dispensacoes e pedidos.
+- Botao Reativar: torna um medicamento inativo ativo novamente.
+
+Nao e necessario executar SQL adicional se a V7 ja foi instalada.
+Atualize no GitHub principalmente app.js e sw.js.
