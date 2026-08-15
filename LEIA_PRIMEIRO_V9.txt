@@ -1,0 +1,15 @@
+GESTÃO FARMACÊUTICA ONLINE — V9
+
+Atualização V9:
+- Corrigir cadastro de pacientes.
+- Desativar paciente sem apagar histórico.
+- Reativar paciente.
+- Pacientes desativados deixam de entrar nos cálculos automáticos de pedidos.
+- Mantidas as funções anteriores de medicamentos por paciente, estoque, pedidos e correção/desativação de medicamentos.
+
+INSTALAÇÃO:
+1. Não é necessário executar SQL novo para esta V9, pois a tabela patients já possui o campo ativo.
+2. No GitHub, substitua app.js e sw.js pelos arquivos desta pasta.
+3. Faça Commit changes.
+4. Aguarde o GitHub Pages concluir o novo deployment.
+5. Feche/reabra o aplicativo ou force atualização para receber o cache V9.
