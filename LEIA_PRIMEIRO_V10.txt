@@ -1,0 +1,19 @@
+GESTÃO FARMACÊUTICA ONLINE - V10
+
+NOVIDADES
+- Entrada de estoque por nota fiscal.
+- Número da nota/documento e fornecedor informados uma vez por entrada.
+- Inclusão de vários medicamentos na mesma nota antes de finalizar.
+- Lote obrigatório por item.
+- Data de validade obrigatória por item.
+- Quantidade recebida por lote.
+- Lista de lotes com saldo disponível.
+- Alertas: vencido, vence em até 30 dias e vence em até 90 dias.
+- Mantém as funções anteriores (pacientes, medicamentos por paciente, pedidos, correção/desativação etc.).
+
+ORDEM DE ATUALIZAÇÃO
+1. Execute ATUALIZACAO_V10_NOTA_LOTE_VALIDADE.sql no SQL Editor do Supabase.
+2. No GitHub substitua app.js, index.html e sw.js pelos arquivos desta V10.
+3. Faça Commit changes e aguarde o GitHub Pages ficar verde.
+4. Feche e abra novamente o aplicativo.
+5. Teste em Estoque > Entrada de estoque por nota fiscal.
