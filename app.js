@@ -186,20 +186,800 @@ async function dispensacao(c){
   await render();
 }
 async function pedidos(c){
-  const [{data:stock,error:es},{data:needs,error:en}]=await Promise.all([
-    sb.from('stock_summary').select('*').order('nome'),
-    sb.from('patient_medication_needs').select('*').order('nome')
+
+  // =========================================================
+  // PADRONIZAÇÃO DOS MEDICAMENTOS
+  // =========================================================
+
+  const limparTexto = (v='') =>
+    String(v).replace(/\s+/g,' ').trim();
+
+  const semAcento = (v='') =>
+    String(v)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'');
+
+  const corrigirNome = (nome='') => {
+
+    let n = limparTexto(nome);
+
+    const chave = semAcento(n).toLowerCase();
+
+    const correcoes = {
+      'setralina':'Sertralina',
+      'sertralina':'Sertralina',
+
+      'alprazolan':'Alprazolam',
+      'alprazolam':'Alprazolam',
+
+      'lanzoprazol':'Lansoprazol',
+      'lansoprazol':'Lansoprazol',
+
+      'simeticon':'Simeticona',
+      'simeticona':'Simeticona',
+
+      'cetrolac':'Cetorolaco',
+      'cetorolac':'Cetorolaco',
+      'cetorolaco':'Cetorolaco',
+
+      'topiramato':'Topiramato',
+      'pregabalina':'Pregabalina',
+      'risperidona':'Risperidona',
+      'quetiapina':'Quetiapina',
+      'trazodona':'Trazodona',
+      'gabapentina':'Gabapentina',
+      'escitalopram':'Escitalopram',
+      'duloxetina':'Duloxetina',
+      'atorvastatina':'Atorvastatina',
+      'rosuvastatina':'Rosuvastatina',
+      'dapagliflozina':'Dapagliflozina'
+    };
+
+    if(correcoes[chave]){
+      return correcoes[chave];
+    }
+
+    return n
+      .toLowerCase()
+      .replace(/(^|\s)([a-záàâãéêíóôõúç])/g,
+        (m,p1,p2)=>p1+p2.toUpperCase()
+      );
+  };
+
+
+  const corrigirDosagem = (valor='') => {
+
+    let d = limparTexto(valor);
+
+    d = d
+      .replace(/(\d)(mg)\b/gi,'$1 mg')
+      .replace(/(\d)(mcg)\b/gi,'$1 mcg')
+      .replace(/(\d)(ml)\b/gi,'$1 mL')
+      .replace(/(\d)(g)\b/gi,'$1 g')
+      .replace(/(\d)(ui)\b/gi,'$1 UI')
+      .replace(/\s*\+\s*/g,' + ')
+      .replace(/\s*\/\s*/g,' / ')
+      .replace(/\bml\b/gi,'mL')
+      .replace(/\bui\b/gi,'UI')
+      .replace(/\s+/g,' ')
+      .trim();
+
+    return d;
+  };
+
+
+  const corrigirForma = (forma='',unidade='') => {
+
+    let f = limparTexto(forma || unidade);
+
+    const chave = semAcento(f).toLowerCase();
+
+    const formas = {
+
+      'comp':'Comprimido',
+      'comprimido':'Comprimido',
+      'comprimidos':'Comprimido',
+
+      'caps':'Cápsula',
+      'capsula':'Cápsula',
+      'capsulas':'Cápsula',
+
+      'frasco':'Frasco',
+      'frascos':'Frasco',
+
+      'gota':'Gotas',
+      'gotas':'Gotas',
+      'gts':'Gotas',
+
+      'ampola':'Ampola',
+      'ampolas':'Ampola',
+
+      'sache':'Sachê',
+      'saches':'Sachê',
+
+      'tubo':'Tubo',
+      'bisnaga':'Bisnaga',
+
+      'solucao oral':'Solução oral',
+      'suspensao oral':'Suspensão oral',
+
+      'xarope':'Xarope',
+
+      'colirio':'Colírio',
+
+      'creme':'Creme',
+      'pomada':'Pomada',
+      'gel':'Gel',
+      'locao':'Loção',
+
+      'spray':'Spray',
+
+      'injetavel':'Injetável',
+
+      'unidade':'Unidade'
+    };
+
+    return formas[chave] || f || 'Unidade';
+  };
+
+
+  // =========================================================
+  // BUSCAR NECESSIDADE DOS PACIENTES + ESTOQUE
+  // =========================================================
+
+  const [
+    {data:stock,error:erroEstoque},
+    {data:needs,error:erroNecessidade}
+  ] = await Promise.all([
+
+    sb
+      .from('stock_summary')
+      .select('*')
+      .order('nome'),
+
+    sb
+      .from('patient_medication_needs')
+      .select('*')
+      .order('nome')
+
   ]);
-  if(es)throw es;
-  if(en)throw new Error('A atualização de pedidos por paciente ainda não foi instalada no Supabase. Execute ATUALIZACAO_MEDICAMENTOS_PACIENTE.sql.');
-  const st=new Map((stock||[]).map(x=>[x.medication_id,x]));
-  const base=(needs||[]).filter(x=>+x.necessidade_mensal>0).map(x=>{const s=st.get(x.medication_id)||{};return {...x,estoque_atual:+(s.estoque_atual||0),estoque_minimo:+(s.estoque_minimo||0),estoque_ideal:+(s.estoque_ideal||0)}});
-  const calc=(x,meses)=>{const necessidade=+x.necessidade_mensal*meses;const sugerida=Math.max(0,necessidade-x.estoque_atual);return {necessidade,sugerida}};
-  c.innerHTML=`<div class="card"><h2>Pedido automático por pacientes + estoque</h2><p>O sistema soma a quantidade mensal dos medicamentos de todos os pacientes ativos e desconta o estoque disponível.</p><div class="grid"><div><label>Período do pedido</label><select id="mesesPedido"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option></select></div><div><label>Regra</label><div class="pill">Pedido = necessidade do período − estoque atual</div></div></div></div><form id="fo"><div class="card"><div id="orderCalc"></div><label>Observações</label><input name="obs" placeholder="Observações do pedido"><button>Gerar pedido</button></div></form><div class="card"><button onclick="window.print()" class="secondary no-print">Imprimir tela</button></div>`;
-  const render=()=>{const meses=+$('#mesesPedido').value;const rows=base.map((x,n)=>{const z=calc(x,meses);return {...x,...z,n}}).filter(x=>x.sugerida>0);$('#orderCalc').innerHTML=rows.length?`<table><tr><th>Incluir</th><th>Medicamento</th><th>Pacientes</th><th>Necessidade</th><th>Estoque</th><th>Quantidade a pedir</th></tr>${rows.map(x=>`<tr><td><input type="checkbox" name="inc_${x.n}" checked></td><td>${esc(x.nome)} ${esc(x.dosagem||'')}</td><td>${x.pacientes_ativos}</td><td>${x.necessidade} ${esc(x.unidade||'')}</td><td>${x.estoque_atual} ${esc(x.unidade||'')}</td><td><input type="number" min="0" step="0.01" name="q_${x.n}" value="${x.sugerida}"></td></tr>`).join('')}</table>`:'<div class="ok">O estoque atual cobre a necessidade cadastrada para este período.</div>';return rows};
-  let currentRows=render();
-  $('#mesesPedido').onchange=()=>{currentRows=render()};
-  $('#fo').onsubmit=async e=>{e.preventDefault();if(!currentRows.length)return alert('Não há itens com necessidade de compra para gerar pedido.');const fd=new FormData(e.target);const selected=currentRows.filter(x=>fd.get(`inc_${x.n}`));if(!selected.length)return alert('Selecione pelo menos um medicamento.');const meses=+$('#mesesPedido').value;const obsBase=fd.get('obs')||'';const obs=`Pedido automático baseado em ${meses} mês(es) de uso dos pacientes. ${obsBase}`.trim();const {data:o,error}=await sb.from('purchase_orders').insert({status:'emitido',observacoes:obs,created_by:profile.id}).select().single();if(error)return alert(error.message);const rows=selected.map(x=>({order_id:o.id,medication_id:x.medication_id,estoque_no_momento:x.estoque_atual,quantidade_sugerida:x.sugerida,quantidade_pedida:+fd.get(`q_${x.n}`)}));const {error:e2}=await sb.from('purchase_order_items').insert(rows);if(e2)alert(e2.message);else{alert('Pedido gerado com sucesso com base nos medicamentos dos pacientes e no estoque.');page('pedidos')}};
+
+
+  if(erroEstoque) throw erroEstoque;
+
+  if(erroNecessidade){
+    throw new Error(
+      'Não foi possível carregar os medicamentos dos pacientes.'
+    );
+  }
+
+
+  const estoquePorMedicamento = new Map(
+    (stock || []).map(x => [
+      x.medication_id,
+      +(x.estoque_atual || 0)
+    ])
+  );
+
+
+  // =========================================================
+  // AGRUPAR MEDICAMENTOS IGUAIS
+  // =========================================================
+
+  function calcularPedido(meses){
+
+    const grupos = new Map();
+
+
+    (needs || [])
+      .filter(x => +(x.necessidade_mensal || 0) > 0)
+      .forEach(x => {
+
+        const nome =
+          corrigirNome(x.nome);
+
+        const dosagem =
+          corrigirDosagem(x.dosagem || '');
+
+        const forma =
+          corrigirForma(x.forma,x.unidade);
+
+
+        // Chave usada para eliminar duplicidade
+        const chave = [
+
+          semAcento(nome).toLowerCase(),
+
+          semAcento(dosagem).toLowerCase(),
+
+          semAcento(forma).toLowerCase()
+
+        ].join('|');
+
+
+        if(!grupos.has(chave)){
+
+          grupos.set(chave,{
+
+            medication_id:x.medication_id,
+
+            nome:nome,
+
+            dosagem:dosagem,
+
+            forma:forma,
+
+            pacientes:0,
+
+            necessidade:0,
+
+            estoque:0
+
+          });
+
+        }
+
+
+        const g = grupos.get(chave);
+
+
+        g.pacientes +=
+          +(x.pacientes_ativos || 0);
+
+
+        g.necessidade +=
+          +(x.necessidade_mensal || 0) * meses;
+
+
+        g.estoque +=
+          +(estoquePorMedicamento.get(x.medication_id) || 0);
+
+      });
+
+
+    return [...grupos.values()]
+
+      .map(x => ({
+
+        ...x,
+
+        quantidade:
+          Math.max(
+            0,
+            x.necessidade - x.estoque
+          )
+
+      }))
+
+      .filter(x => x.quantidade > 0)
+
+      .sort((a,b)=>
+
+        a.nome.localeCompare(
+          b.nome,
+          'pt-BR',
+          {sensitivity:'base'}
+        )
+
+      );
+
+  }
+
+
+  // =========================================================
+  // TELA DO PEDIDO
+  // =========================================================
+
+  c.innerHTML = `
+
+  <div class="card">
+
+    <h2>
+      GESTÃO FARMACÊUTICA —
+      ISAÍAS FERNANDES DE CARVALHO
+    </h2>
+
+    <h3>Pedido de Medicamentos</h3>
+
+    <p>
+      O sistema soma automaticamente os medicamentos
+      utilizados pelos pacientes ativos, elimina
+      duplicidades e desconta o estoque disponível.
+    </p>
+
+    <div class="grid">
+
+      <div>
+
+        <label>Período do pedido</label>
+
+        <select id="mesesPedido">
+
+          <option value="1">1 mês</option>
+
+          <option value="2">2 meses</option>
+
+          <option value="3">3 meses</option>
+
+        </select>
+
+      </div>
+
+      <div>
+
+        <label>Regra</label>
+
+        <div class="pill">
+          Necessidade dos pacientes − estoque atual
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <form id="fo">
+
+    <div class="card">
+
+      <div id="orderCalc"></div>
+
+      <label>Observações</label>
+
+      <input
+        name="obs"
+        placeholder="Observações do pedido"
+      >
+
+      <div class="actions">
+
+        <button type="submit">
+          Gerar pedido
+        </button>
+
+        <button
+          type="button"
+          id="baixarExcel"
+          class="secondary"
+        >
+          Baixar Excel
+        </button>
+
+      </div>
+
+    </div>
+
+  </form>
+
+  `;
+
+
+  // =========================================================
+  // MOSTRAR TABELA
+  // =========================================================
+
+  const render = () => {
+
+    const meses =
+      +$('#mesesPedido').value;
+
+
+    const rows =
+      calcularPedido(meses)
+      .map((x,n)=>({...x,n}));
+
+
+    $('#orderCalc').innerHTML =
+
+      rows.length
+
+      ? `
+
+      <table>
+
+        <tr>
+
+          <th>Incluir</th>
+
+          <th>
+            Nome do medicamento
+          </th>
+
+          <th>
+            Dosagem / Concentração
+          </th>
+
+          <th>
+            Forma farmacêutica
+          </th>
+
+          <th>
+            Quantidade
+          </th>
+
+        </tr>
+
+
+        ${rows.map(x=>`
+
+        <tr>
+
+          <td>
+
+            <input
+              type="checkbox"
+              name="inc_${x.n}"
+              checked
+            >
+
+          </td>
+
+          <td>
+            ${esc(x.nome)}
+          </td>
+
+          <td>
+            ${esc(x.dosagem)}
+          </td>
+
+          <td>
+            ${esc(x.forma)}
+          </td>
+
+          <td>
+
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="q_${x.n}"
+              value="${x.quantidade}"
+            >
+
+          </td>
+
+        </tr>
+
+        `).join('')}
+
+      </table>
+
+      `
+
+      :
+
+      `<div class="ok">
+        O estoque atual cobre a necessidade
+        cadastrada para este período.
+      </div>`;
+
+
+    return rows;
+
+  };
+
+
+  let currentRows = render();
+
+
+  $('#mesesPedido').onchange = () => {
+
+    currentRows = render();
+
+  };
+
+
+  // =========================================================
+  // GERAR EXCEL
+  // =========================================================
+
+  $('#baixarExcel').onclick = () => {
+
+    if(!currentRows.length){
+
+      alert(
+        'Não há medicamentos para gerar o pedido.'
+      );
+
+      return;
+
+    }
+
+
+    const fd =
+      new FormData($('#fo'));
+
+
+    const selecionados =
+
+      currentRows
+
+      .filter(x =>
+        fd.get(`inc_${x.n}`)
+      )
+
+      .map(x => ({
+
+        nome:x.nome,
+
+        dosagem:x.dosagem,
+
+        forma:x.forma,
+
+        quantidade:
+          +fd.get(`q_${x.n}`)
+
+      }))
+
+      .filter(x =>
+        x.quantidade > 0
+      );
+
+
+    if(!selecionados.length){
+
+      alert(
+        'Selecione pelo menos um medicamento.'
+      );
+
+      return;
+
+    }
+
+
+    let tabela = `
+
+    <html>
+
+    <head>
+
+      <meta charset="UTF-8">
+
+    </head>
+
+    <body>
+
+      <h2>
+        GESTÃO FARMACÊUTICA —
+        ISAÍAS FERNANDES DE CARVALHO
+      </h2>
+
+      <h3>
+        PEDIDO DE MEDICAMENTOS
+      </h3>
+
+      <table border="1">
+
+        <tr>
+
+          <th>
+            Nome do medicamento
+          </th>
+
+          <th>
+            Dosagem / Concentração
+          </th>
+
+          <th>
+            Forma farmacêutica
+          </th>
+
+          <th>
+            Quantidade
+          </th>
+
+        </tr>
+
+    `;
+
+
+    selecionados.forEach(x=>{
+
+      tabela += `
+
+        <tr>
+
+          <td>${esc(x.nome)}</td>
+
+          <td>${esc(x.dosagem)}</td>
+
+          <td>${esc(x.forma)}</td>
+
+          <td>${x.quantidade}</td>
+
+        </tr>
+
+      `;
+
+    });
+
+
+    tabela += `
+
+      </table>
+
+    </body>
+
+    </html>
+
+    `;
+
+
+    const blob =
+      new Blob(
+        [tabela],
+        {
+          type:
+          'application/vnd.ms-excel;charset=utf-8'
+        }
+      );
+
+
+    const url =
+      URL.createObjectURL(blob);
+
+
+    const link =
+      document.createElement('a');
+
+
+    link.href = url;
+
+
+    link.download =
+      'Pedido_Medicamentos_Gestao_Farmaceutica.xls';
+
+
+    document.body.appendChild(link);
+
+
+    link.click();
+
+
+    link.remove();
+
+
+    URL.revokeObjectURL(url);
+
+  };
+
+
+  // =========================================================
+  // SALVAR PEDIDO NO SISTEMA
+  // =========================================================
+
+  $('#fo').onsubmit = async e => {
+
+    e.preventDefault();
+
+
+    if(!currentRows.length){
+
+      alert(
+        'Não há medicamentos com necessidade de compra.'
+      );
+
+      return;
+
+    }
+
+
+    const fd =
+      new FormData(e.target);
+
+
+    const selecionados =
+
+      currentRows.filter(
+        x => fd.get(`inc_${x.n}`)
+      );
+
+
+    if(!selecionados.length){
+
+      alert(
+        'Selecione pelo menos um medicamento.'
+      );
+
+      return;
+
+    }
+
+
+    const meses =
+      +$('#mesesPedido').value;
+
+
+    const obsUsuario =
+      fd.get('obs') || '';
+
+
+    const observacoes =
+
+      `Pedido automático consolidado, ` +
+
+      `sem duplicidades, em ordem alfabética, ` +
+
+      `referente a ${meses} mês(es). ` +
+
+      obsUsuario;
+
+
+    const {data:pedido,error} =
+
+      await sb
+      .from('purchase_orders')
+      .insert({
+
+        status:'emitido',
+
+        observacoes,
+
+        created_by:profile.id
+
+      })
+
+      .select()
+
+      .single();
+
+
+    if(error){
+
+      alert(error.message);
+
+      return;
+
+    }
+
+
+    const itens =
+
+      selecionados.map(x => ({
+
+        order_id:
+          pedido.id,
+
+        medication_id:
+          x.medication_id,
+
+        estoque_no_momento:
+          x.estoque,
+
+        quantidade_sugerida:
+          x.quantidade,
+
+        quantidade_pedida:
+          +fd.get(`q_${x.n}`)
+
+      }));
+
+
+    const {error:erroItens} =
+
+      await sb
+      .from('purchase_order_items')
+      .insert(itens);
+
+
+    if(erroItens){
+
+      alert(erroItens.message);
+
+      return;
+
+    }
+
+
+    alert(
+      'Pedido gerado com sucesso.'
+    );
+
+  };
+
+}
 }
 async function equipe(c){const [{data:users},{whatsapp_group_url,whatsapp_group_name}]=await Promise.all([sb.from('profiles').select('id,nome,telefone,role,ativo').in('role',['admin','gestor','atendente']).eq('ativo',true).order('nome'),getAppSettings()]); const rows=(users||[]).map(u=>{const n=(u.telefone||'').replace(/\D/g,'');const wa=n?`<a class="btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/${n}">Conversar</a>`:'Sem telefone';return `<tr><td>${esc(u.nome)}</td><td>${esc(u.telefone||'')}</td><td>${esc(u.role)}</td><td>${wa}</td></tr>`}).join(''); c.innerHTML=`${whatsapp_group_url?`<div class="card ok"><h2>${esc(whatsapp_group_name||'Grupo dos Gestores')}</h2><a class="btn whatsapp" target="_blank" rel="noopener" href="${esc(whatsapp_group_url)}">Entrar / abrir grupo no WhatsApp</a></div>`:''}<div class="card"><h2>Equipe autorizada</h2><table><tr><th>Nome</th><th>WhatsApp</th><th>Perfil</th><th>Contato</th></tr>${rows}</table></div>`}
 async function usuarios(c){if(profile.role!=='admin')return;c.innerHTML='<div class="card">Carregando usuários...</div>'; const [{data},{whatsapp_group_url,whatsapp_group_name}]=await Promise.all([sb.from('profiles').select('*').order('created_at'),getAppSettings()]); c.innerHTML=`<div class="card"><h2>Grupo de WhatsApp dos gestores</h2><form id="fw"><label>Nome do grupo</label><input name="name" value="${esc(whatsapp_group_name||'Gestores - Gestão Farmacêutica')}"><label>Link de convite do grupo</label><input name="url" type="url" placeholder="https://chat.whatsapp.com/..." value="${esc(whatsapp_group_url||'')}"><p class="small">Crie o grupo no WhatsApp uma única vez, copie o link de convite e salve aqui. Após a aprovação, cada gestor verá automaticamente o botão para entrar.</p><button>Salvar grupo</button></form></div><div class="card"><h2>Usuários</h2><table><tr><th>Nome</th><th>WhatsApp</th><th>Perfil</th><th>Ativo</th><th>Ação</th></tr>${(data||[]).map(u=>`<tr><td>${esc(u.nome)}</td><td>${esc(u.telefone||'')}</td><td><select id="r_${u.id}"><option ${u.role==='pendente'?'selected':''}>pendente</option><option ${u.role==='atendente'?'selected':''}>atendente</option><option ${u.role==='gestor'?'selected':''}>gestor</option><option ${u.role==='admin'?'selected':''}>admin</option><option ${u.role==='bloqueado'?'selected':''}>bloqueado</option></select></td><td>${u.ativo?'Sim':'Não'}</td><td><button data-id="${u.id}" class="saveRole">Salvar</button></td></tr>`).join('')}</table></div>`; $('#fw').onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));if(o.url&&!/^https:\/\/(chat\.)?whatsapp\.com\//i.test(o.url)){alert('Informe um link de convite válido do WhatsApp.');return;}const {error}=await sb.from('app_settings').upsert({id:1,whatsapp_group_url:o.url||null,whatsapp_group_name:o.name||'Gestores - Gestão Farmacêutica',updated_by:profile.id});if(error)alert(error.message);else alert('Grupo salvo. Os usuários aprovados verão o botão automaticamente.');}; document.querySelectorAll('.saveRole').forEach(b=>b.onclick=async()=>{const role=$(`#r_${b.dataset.id}`).value;const {error}=await sb.from('profiles').update({role}).eq('id',b.dataset.id);if(error)alert(error.message);else alert(role==='gestor'||role==='atendente'||role==='admin'?'Perfil aprovado. O botão do grupo de WhatsApp já ficará disponível para este usuário.':'Perfil atualizado.')})}
