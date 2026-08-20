@@ -954,7 +954,7 @@ async function pedidos(c){
         quantidade_pedida:
           +fd.get(`q_${x.n}`)
 
-      }));
+      }))
 
 
     const {error:erroItens} =
