@@ -18,7 +18,7 @@
 <section id="app" class="hidden">
 <div id="pending" class="warn hidden">Seu acesso ainda não foi aprovado pelo Administrador Geral.</div>
 <nav id="nav" class="no-print hidden">
-<button data-page="painel">Painel</button><button data-page="pacientes">Pacientes</button><button data-page="medicamentos">Medicamentos</button><button data-page="estoque">Estoque</button><button data-page="prescricoes">Prescrições</button><button data-page="dispensacao">Dispensação</button><button data-page="pedidos">Pedidos</button><button data-page="equipe">Equipe</button><button data-page="usuarios" id="btnUsuarios">Usuários</button><button data-page="auditoria" id="btnAudit">Auditoria</button>
+<button data-page="painel">Painel</button><button data-page="pacientes">Pacientes</button><button data-page="medicamentos">Medicamentos</button><button data-page="estoque">Estoque</button><button data-page="dispensacao">Dispensação</button><button data-page="historico-dispensacoes" id="btnHistoricoDisp">Histórico de Dispensações</button><button data-page="pedidos">Pedidos</button><button data-page="equipe">Equipe</button><button data-page="usuarios" id="btnUsuarios">Usuários</button><button data-page="auditoria" id="btnAudit">Auditoria</button>
 </nav>
 <div id="content"></div>
 </section>
@@ -44,6 +44,8 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=10"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="app.js?v=12"></script>
+<script src="melhorias-v12.js?v=12"></script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
 </body></html>
