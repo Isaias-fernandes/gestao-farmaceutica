@@ -979,63 +979,117 @@ async function pedidos(c){
 
 };
 }
-async function equipe(c){const [{data:users},{whatsapp_group_url,whatsapp_group_name}]=await Promise.all([sb.from('profiles').select('id,nome,telefone,role,ativo').in('role',['admin','gestor','atendente']).eq('ativo',true).order('nome'),getAppSettings()]); const rows=(users||[]).map(u=>{const n=(u.telefone||'').replace(/\D/g,'');const wa=n?`<a class="btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/${n}">Conversar</a>`:'Sem telefone';return `<tr><td>${esc(u.nome)}</td><td>${esc(u.telefone||'')}</td><td>${esc(u.role)}</td><td>${wa}</td></tr>`}).join(''); c.innerHTML=`${whatsapp_group_url?`<div class="card ok"><h2>${esc(whatsapp_group_name||'Grupo dos Gestores')}</h2><a class="btn whatsapp" target="_blank" rel="noopener" href="${esc(whatsapp_group_url)}">Entrar / abrir grupo no WhatsApp</a></div>`:''}<div class="card"><h2>Equipe autorizada</h2><table><tr><th>Nome</th><th>WhatsApp</th><th>Perfil</th><th>Contato</th></tr>${rows}</table></div>`}
-async function usuarios(c){if(profile.role!=='admin')return;c.innerHTML='<div class="card">Carregando usuários...</div>'; const [{data},{whatsapp_group_url,whatsapp_group_name}]=await Promise.all([sb.from('profiles').select('*').order('created_at'),getAppSettings()]); c.innerHTML=`<div class="card"><h2>Grupo de WhatsApp dos gestores</h2><form id="fw"><label>Nome do grupo</label><input name="name" value="${esc(whatsapp_group_name||'Gestores - Gestão Farmacêutica')}"><label>Link de convite do grupo</label><input name="url" type="url" placeholder="https://chat.whatsapp.com/..." value="${esc(whatsapp_group_url||'')}"><p class="small">Crie o grupo no WhatsApp uma única vez, copie o link de convite e salve aqui. Após a aprovação, cada gestor verá automaticamente o botão para entrar.</p><button>Salvar grupo</button></form></div><div class="card"><h2>Usuários</h2><table><tr><th>Nome</th><th>WhatsApp</th><th>Perfil</th><th>Ativo</th><th>Ação</th></tr>${(data||[]).map(u=>`<tr><td>${esc(u.nome)}</td><td>${esc(u.telefone||'')}</td><td><select id="r_${u.id}"><option ${u.role==='pendente'?'selected':''}>pendente</option><option ${u.role==='atendente'?'selected':''}>atendente</option><option ${u.role==='gestor'?'selected':''}>gestor</option><option ${u.role==='admin'?'selected':''}>admin</option><option ${u.role==='bloqueado'?'selected':''}>bloqueado</option></select></td><td>${u.ativo?'Sim':'Não'}</td><td><button data-id="${u.id}" class="saveRole">Salvar</button></td></tr>`).join('')}</table></div>`; $('#fw').onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));if(o.url&&!/^https:\/\/(chat\.)?whatsapp\.com\//i.test(o.url)){alert('Informe um link de convite válido do WhatsApp.');return;}const {error}=await sb.from('app_settings').upsert({id:1,whatsapp_group_url:o.url||null,whatsapp_group_name:o.name||'Gestores - Gestão Farmacêutica',updated_by:profile.id});if(error)alert(error.message);else alert('Grupo salvo. Os usuários aprovados verão o botão automaticamente.');}; document.querySelectorAll('.saveRole').forEach(b=>b.onclick=async()=>{const role=$(`#r_${b.dataset.id}`).value;const {error}=await sb.from('profiles').update({role}).eq('id',b.dataset.id);if(error)alert(error.message);else alert(role==='gestor'||role==='atendente'||role==='admin'?'Perfil aprovado. O botão do grupo de WhatsApp já ficará disponível para este usuário.':'Perfil atualizado.')})}
 async function auditoria(c){
   if(!['admin','gestor'].includes(profile.role)) return;
 
-  const {data,error}=await sb
-    .from('audit_log')
-    .select('*')
-    .order('created_at',{ascending:false})
-    .limit(100);
+  const [{data,error},{data:usuarios,error:erroUsuarios}] = await Promise.all([
+    sb
+      .from('audit_log')
+      .select('*')
+      .order('created_at',{ascending:false})
+      .limit(100),
+
+    sb
+      .from('profiles')
+      .select('id,nome')
+  ]);
 
   if(error) throw error;
+  if(erroUsuarios) throw erroUsuarios;
+
+  const nomesUsuarios = new Map(
+    (usuarios || []).map(u => [u.id, u.nome])
+  );
 
   const formatarDetalhes=(det)=>{
     if(!det) return '';
 
     let d=det;
+
     if(typeof d==='string'){
-      try{ d=JSON.parse(d); }catch(e){ return esc(d); }
+      try{
+        d=JSON.parse(d);
+      }catch(e){
+        return esc(d);
+      }
     }
 
     if(d.alteracoes){
-      return Object.entries(d.alteracoes).map(([campo,v])=>{
-        const anterior=v?.anterior ?? '';
-        const novo=v?.novo ?? '';
-        return `<b>${esc(campo)}:</b> ${esc(anterior)} → ${esc(novo)}`;
-      }).join('<br>');
+      return Object.entries(d.alteracoes)
+        .map(([campo,v])=>{
+          const anterior=v?.anterior ?? '';
+          const novo=v?.novo ?? '';
+
+          return `
+            <div style="margin-bottom:4px">
+              <b>${esc(campo)}:</b>
+              ${esc(String(anterior))}
+              <b>→</b>
+              ${esc(String(novo))}
+            </div>
+          `;
+        })
+        .join('');
     }
 
     if(d.campos_alterados){
-      return `<b>Campos alterados:</b> ${d.campos_alterados.map(esc).join(', ')}`;
+      return `
+        <b>Campos alterados:</b>
+        ${d.campos_alterados.map(esc).join(', ')}
+      `;
     }
 
     return esc(JSON.stringify(d));
   };
 
+  const nomeUsuario=(userId)=>{
+    if(!userId) return 'Sistema / não identificado';
+    return nomesUsuarios.get(userId) || 'Usuário não identificado';
+  };
+
   c.innerHTML=`
     <div class="card">
       <h2>Auditoria</h2>
+
       <div style="overflow-x:auto">
         <table>
           <tr>
             <th>Data</th>
+            <th>Usuário</th>
             <th>Ação</th>
             <th>Entidade</th>
             <th>Detalhes</th>
           </tr>
+
           ${(data||[]).map(x=>`
             <tr>
-              <td>${esc(new Date(x.created_at).toLocaleString('pt-BR'))}</td>
-              <td>${esc(x.acao||'')}</td>
-              <td>${esc(x.entidade||'')}</td>
-              <td>${formatarDetalhes(x.detalhes)}</td>
+              <td>
+                ${esc(
+                  new Date(x.created_at)
+                    .toLocaleString('pt-BR')
+                )}
+              </td>
+
+              <td>
+                <b>${esc(nomeUsuario(x.user_id))}</b>
+              </td>
+
+              <td>
+                ${esc(x.acao || '')}
+              </td>
+
+              <td>
+                ${esc(x.entidade || '')}
+              </td>
+
+              <td>
+                ${formatarDetalhes(x.detalhes)}
+              </td>
             </tr>
           `).join('')}
+
         </table>
       </div>
-    </div>`;
+    </div>
+  `;
 }
-boot();
