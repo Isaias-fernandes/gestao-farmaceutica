@@ -185,6 +185,16 @@ async function dispensacao(c){
   $('#rxItem').onchange=render;
   await render();
 }
+function pedidoUnidadeInteira(unidade){
+  const u=String(unidade||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  return ['comprimido','capsula','frasco','ampola','sache','tubo','bisnaga','unidade','gota','aplicador','seringa','envelope','cartela','caixa'].includes(u);
+}
+function arredondarQuantidadePedido(valor,unidade){
+  const n=Number(valor);
+  if(!Number.isFinite(n)||n<0) throw new Error('Informe uma quantidade válida para o pedido.');
+  // Remove apenas ruído de ponto flutuante antes do teto de unidades inteiras.
+  return pedidoUnidadeInteira(unidade)?Math.ceil(Number(n.toFixed(8))):Number(n.toFixed(2));
+}
 async function pedidos(c){
 
   // =========================================================
@@ -392,7 +402,8 @@ async function pedidos(c){
 
           semAcento(dosagem).toLowerCase(),
 
-          semAcento(forma).toLowerCase()
+          semAcento(forma).toLowerCase(),
+          semAcento(x.unidade || '').trim().toLowerCase()
 
         ].join('|');
 
@@ -408,6 +419,7 @@ async function pedidos(c){
             dosagem:dosagem,
 
             forma:forma,
+            unidade:x.unidade || '',
 
             pacientes:0,
 
@@ -444,10 +456,10 @@ async function pedidos(c){
         ...x,
 
         quantidade:
-          Math.max(
+          arredondarQuantidadePedido(Math.max(
             0,
             x.necessidade - x.estoque
-          )
+          ),x.unidade)
 
       }))
 
@@ -633,7 +645,7 @@ async function pedidos(c){
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="${pedidoUnidadeInteira(x.unidade)?'1':'0.01'}"
               name="q_${x.n}"
               value="${x.quantidade}"
             >
@@ -656,6 +668,15 @@ async function pedidos(c){
       </div>`;
 
 
+    rows.forEach(x=>{
+      const input=$(`[name="q_${x.n}"]`);
+      if(input) input.onchange=()=>{
+        try{
+          input.value=String(arredondarQuantidadePedido(input.value,x.unidade));
+          input.setCustomValidity('');
+        }catch(e){input.setCustomValidity(e.message);}
+      };
+    });
     return rows;
 
   };
@@ -709,7 +730,7 @@ async function pedidos(c){
         forma:x.forma,
 
         quantidade:
-          +fd.get(`q_${x.n}`)
+          arredondarQuantidadePedido(fd.get(`q_${x.n}`),x.unidade)
 
       }))
 
@@ -952,7 +973,7 @@ async function pedidos(c){
           x.quantidade,
 
         quantidade_pedida:
-          +fd.get(`q_${x.n}`)
+          arredondarQuantidadePedido(fd.get(`q_${x.n}`),x.unidade)
 
       }));
 
