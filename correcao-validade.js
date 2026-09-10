@@ -1,5 +1,5 @@
 // Gestão Farmacêutica — correção segura de validade de lote
-// Altera somente a validade do lote selecionado via RPC auditada.
+// Exibe a função na tela ESTOQUE, junto do cadastro de lote/validade.
 (function(){
   const previousPage=window.page;
   if(typeof previousPage!=='function') return;
@@ -20,18 +20,20 @@
     card.id='correcaoValidadeCard';
     card.className='card';
     card.innerHTML=`
-      <h2>Correção de validade</h2>
-      <p class="small">Corrija uma validade digitada incorretamente. A alteração não modifica lote, quantidade, estoque, medicamento, paciente ou histórico de dispensações.</p>
-      <div class="warn" style="margin-bottom:12px">A validade anterior, a nova validade, o lote, o motivo, o usuário e a data/hora ficam registrados na auditoria.</div>
+      <h2>Corrigir validade de lote</h2>
+      <p class="small">Use esta opção quando a data de validade de um lote tiver sido cadastrada incorretamente.</p>
+      <div class="warn" style="margin-bottom:12px">A correção altera somente a validade. Lote, quantidade, saldo, medicamento e históricos permanecem inalterados. A alteração fica registrada na Auditoria.</div>
       <form id="fCorrecaoValidade" class="grid">
         <div><label>Medicamento</label><select id="valMed" required><option value="">Selecione...</option>${(meds||[]).map(m=>`<option value="${m.id}">${esc(m.nome)} ${esc(m.dosagem||'')}${m.apresentacao?` — ${esc(m.apresentacao)}`:''}</option>`).join('')}</select></div>
         <div><label>Lote</label><select id="valLote" required disabled><option value="">Selecione o medicamento primeiro</option></select></div>
         <div><label>Validade atual</label><input id="valAtual" type="date" readonly></div>
         <div><label>Nova validade correta</label><input id="valNova" type="date" required></div>
         <div style="grid-column:1/-1"><label>Motivo da correção</label><input id="valMotivo" required placeholder="Ex.: validade digitada incorretamente na entrada da nota"></div>
-        <div><button type="submit">Confirmar correção de validade</button></div>
+        <div><button type="submit">Salvar correção da validade</button></div>
       </form>`;
-    c.appendChild(card);
+
+    // Coloca o quadro no início da tela de Estoque, próximo do cadastro de lote/validade.
+    c.insertBefore(card,c.firstChild);
 
     const medSel=document.querySelector('#valMed');
     const loteSel=document.querySelector('#valLote');
@@ -69,15 +71,15 @@
         const {error}=await sb.rpc('corrigir_validade_lote',{p_stock_lot_id:lote.id,p_nova_validade:novaVal,p_motivo:motivo});
         if(error) throw error;
         alert(`Validade corrigida com sucesso: ${anteriorTexto} → ${novaTexto}. A alteração foi registrada na auditoria.`);
-        await window.page('medicamentos');
+        await window.page('estoque');
       }catch(err){alert('Erro ao corrigir validade: '+(err?.message||err));}
-      finally{btn.disabled=false;btn.textContent='Confirmar correção de validade';}
+      finally{btn.disabled=false;btn.textContent='Salvar correção da validade';}
     };
   }
 
   window.page=async function(p){
     const result=await previousPage(p);
-    if(p==='medicamentos'){
+    if(p==='estoque'){
       try{await instalarCorrecaoValidade();}
       catch(e){console.error('Falha ao carregar correção de validade:',e);}
     }
