@@ -8,48 +8,7 @@
 </style></head>
 <body>
 <div class="top"><b>Gestão Farmacêutica Online</b><div><span id="who"></span> <button id="logout" class="secondary hidden">Sair</button></div></div>
-<div class="wrap">
-<section id="loginBox" class="card login">
-<h2>Acesso</h2><div id="cfgWarn" class="warn hidden">Configure o arquivo <b>config.js</b> com a URL e a chave pública do Supabase.</div>
-<label>E-mail</label><input id="email" type="email" autocomplete="username"><label>Senha</label><input id="senha" type="password" autocomplete="current-password"><button id="loginBtn">Entrar</button>
-<hr><h3>Primeiro acesso de um gestor</h3><p class="small">O usuário cria a conta e ela fica <b>pendente</b> até o Administrador Geral aprovar. Depois da aprovação, o botão do grupo de WhatsApp fica disponível automaticamente.</p>
-<label>Nome</label><input id="nomeCadastro" autocomplete="name"><label>Celular / WhatsApp</label><input id="telefoneCadastro" inputmode="tel" placeholder="Ex.: 31999999999" autocomplete="tel"><label>E-mail</label><input id="emailCadastro" type="email" autocomplete="email"><label>Senha</label><input id="senhaCadastro" type="password" autocomplete="new-password"><button id="signupBtn">Criar conta</button><p id="signupHelp" class="small">Preencha os 4 campos. O botão ficará pronto para cadastro.</p><p id="loginMsg"></p>
-</section>
-<section id="app" class="hidden">
-<div id="pending" class="warn hidden">Seu acesso ainda não foi aprovado pelo Administrador Geral.</div>
-<nav id="nav" class="no-print hidden">
-<button data-page="painel">Painel</button><button data-page="pacientes">Pacientes</button><button data-page="medicamentos">Medicamentos</button><button data-page="estoque">Estoque</button><button data-page="dispensacao">Dispensação</button><button data-page="historico-dispensacoes" id="btnHistoricoDisp">Histórico de Dispensações</button><button data-page="pedidos">Pedidos</button><button data-page="equipe">Equipe</button><button data-page="usuarios" id="btnUsuarios">Usuários</button><button data-page="auditoria" id="btnAudit">Auditoria</button>
-</nav>
-<div id="content"></div>
-</section>
-</div>
-<script src="config.js"></script>
-<script>
-window.__APP_MODULE_STARTED=false;
-window.addEventListener('DOMContentLoaded',()=>{
-  const btn=document.getElementById('signupBtn');
-  const ids=['nomeCadastro','telefoneCadastro','emailCadastro','senhaCadastro'];
-  const refresh=()=>{
-    const ok=ids.every(id=>document.getElementById(id).value.trim().length>0);
-    btn.style.opacity=ok?'1':'0.65';
-    document.getElementById('signupHelp').textContent=ok?'Campos preenchidos. Clique em Criar conta.':'Preencha nome, celular/WhatsApp, e-mail e senha.';
-  };
-  ids.forEach(id=>document.getElementById(id).addEventListener('input',refresh));
-  refresh();
-  setTimeout(()=>{
-    if(!window.__APP_MODULE_STARTED){
-      document.getElementById('loginMsg').textContent='O módulo do aplicativo não carregou. Atualize a página. Se persistir, verifique a conexão com a internet.';
-    }
-  },5000);
-});
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="xlsx-download-fix.js?v=1"></script>
-<script src="app.js?v=16"></script>
-<script src="melhorias-v12.js?v=13"></script>
-<script src="correcao-estoque.js?v=1"></script>
-<script src="pedidos-v2.js?v=2"></script>
-<script src="correcao-validade.js?v=2"></script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
-</body></html>
+<div class="wrap"><section id="loginBox" class="card login"><h2>Acesso</h2><div id="cfgWarn" class="warn hidden">Configure o arquivo <b>config.js</b> com a URL e a chave pública do Supabase.</div><label>E-mail</label><input id="email" type="email" autocomplete="username"><label>Senha</label><input id="senha" type="password" autocomplete="current-password"><button id="loginBtn">Entrar</button><hr><h3>Primeiro acesso de um gestor</h3><p class="small">O usuário cria a conta e ela fica <b>pendente</b> até o Administrador Geral aprovar. Depois da aprovação, o botão do grupo de WhatsApp fica disponível automaticamente.</p><label>Nome</label><input id="nomeCadastro" autocomplete="name"><label>Celular / WhatsApp</label><input id="telefoneCadastro" inputmode="tel" placeholder="Ex.: 31999999999" autocomplete="tel"><label>E-mail</label><input id="emailCadastro" type="email" autocomplete="email"><label>Senha</label><input id="senhaCadastro" type="password" autocomplete="new-password"><button id="signupBtn">Criar conta</button><p id="signupHelp" class="small">Preencha os 4 campos. O botão ficará pronto para cadastro.</p><p id="loginMsg"></p></section>
+<section id="app" class="hidden"><div id="pending" class="warn hidden">Seu acesso ainda não foi aprovado pelo Administrador Geral.</div><nav id="nav" class="no-print hidden"><button data-page="painel">Painel</button><button data-page="pacientes">Pacientes</button><button data-page="medicamentos">Medicamentos</button><button data-page="estoque">Estoque</button><button data-page="dispensacao">Dispensação</button><button data-page="historico-dispensacoes" id="btnHistoricoDisp">Histórico de Dispensações</button><button data-page="pedidos">Pedidos</button><button data-page="equipe">Equipe</button><button data-page="usuarios" id="btnUsuarios">Usuários</button><button data-page="auditoria" id="btnAudit">Auditoria</button></nav><div id="content"></div></section></div>
+<script src="config.js"></script><script>window.__APP_MODULE_STARTED=false;window.addEventListener('DOMContentLoaded',()=>{const btn=document.getElementById('signupBtn');const ids=['nomeCadastro','telefoneCadastro','emailCadastro','senhaCadastro'];const refresh=()=>{const ok=ids.every(id=>document.getElementById(id).value.trim().length>0);btn.style.opacity=ok?'1':'0.65';document.getElementById('signupHelp').textContent=ok?'Campos preenchidos. Clique em Criar conta.':'Preencha nome, celular/WhatsApp, e-mail e senha.';};ids.forEach(id=>document.getElementById(id).addEventListener('input',refresh));refresh();setTimeout(()=>{if(!window.__APP_MODULE_STARTED)document.getElementById('loginMsg').textContent='O módulo do aplicativo não carregou. Atualize a página. Se persistir, verifique a conexão com a internet.';},5000);});</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="xlsx-download-fix.js?v=1"></script><script src="app.js?v=16"></script><script src="melhorias-v12.js?v=13"></script><script src="correcao-estoque.js?v=1"></script><script src="pedidos-v2.js?v=2"></script><script src="correcao-validade.js?v=2"></script><script src="exclusao-permanente.js?v=1"></script><script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script></body></html>
