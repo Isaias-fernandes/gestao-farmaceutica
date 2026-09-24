@@ -44,37 +44,34 @@
   }
 
   async function pedidosV2(c){
-    const [{data:needs,error:en},{data:stock,error:es}]=await Promise.all([
-      sb.from('patient_medication_needs').select('*').order('nome'),
-      sb.from('stock_summary').select('*').order('nome')
-    ]);
-    if(en) throw new Error('Não foi possível carregar a necessidade dos pacientes: '+en.message);
-    if(es) throw new Error('Não foi possível carregar o estoque atual: '+es.message);
-
-    const estoquePorId=new Map((stock||[]).map(x=>[String(x.medication_id),num(x.estoque_atual)]));
+    const {data:needs,error:en}=await sb
+      .from('purchase_order_needs')
+      .select('*')
+      .order('nome');
+    if(en) throw new Error('Não foi possível carregar o cálculo consolidado do pedido: '+en.message);
 
     function calcular(meses){
-      const grupos=new Map();
-      (needs||[]).filter(x=>num(x.necessidade_mensal)>0).forEach(x=>{
-        const nome=nomePadrao(x.nome);
-        const dosagem=dosagemPadrao(x.dosagem||'');
-        const forma=formaPadrao(x.forma,x.unidade);
-        const chave=[semAcento(nome).toLowerCase(),semAcento(dosagem).toLowerCase(),semAcento(forma).toLowerCase()].join('|');
-        if(!grupos.has(chave)) grupos.set(chave,{nome,dosagem,forma,unidade:x.unidade||forma,necessidade:0,estoque:0,pacientes:0,medicationIds:new Set()});
-        const g=grupos.get(chave);
-        g.necessidade+=num(x.necessidade_mensal)*meses;
-        g.pacientes+=num(x.pacientes_ativos);
-        const medId=String(x.medication_id||'');
-        if(medId && !g.medicationIds.has(medId)){
-          g.medicationIds.add(medId);
-          g.estoque+=num(estoquePorId.get(medId));
-        }
-      });
-      return [...grupos.values()].map(g=>({
-        ...g,
-        medication_id:[...g.medicationIds][0]||null,
-        quantidade:arredondar(Math.max(0,g.necessidade-g.estoque),g.unidade)
-      })).filter(x=>x.quantidade>0).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
+      return (needs||[])
+        .filter(x=>num(x.necessidade_mensal)>0)
+        .map(x=>{
+          const unidade=x.unidade||x.forma||'Unidade';
+          const necessidade=num(x.necessidade_mensal)*meses;
+          const estoque=num(x.estoque_atual);
+          return {
+            nome:nomePadrao(x.nome),
+            dosagem:dosagemPadrao(x.dosagem||''),
+            forma:formaPadrao(x.forma,x.unidade),
+            unidade,
+            necessidade,
+            estoque,
+            pacientes:num(x.pacientes_ativos),
+            medication_id:x.medication_id,
+            cadastrosAgrupados:num(x.cadastros_agrupados),
+            quantidade:arredondar(Math.max(0,necessidade-estoque),unidade)
+          };
+        })
+        .filter(x=>x.quantidade>0)
+        .sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
     }
 
     c.innerHTML=`
