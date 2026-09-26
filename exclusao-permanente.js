@@ -27,8 +27,6 @@
       if(!id) return alert('Selecione o medicamento.');
       const nome=sel.options[sel.selectedIndex].text;
       if(!confirm(`ATENÇÃO: exclusão permanente.\n\nMedicamento: ${nome}\n\nEle será retirado das listas operacionais e dos pacientes, mas o histórico antigo será preservado. Deseja continuar?`)) return;
-      const digitado=prompt(`Para confirmar a exclusão definitiva, digite EXCLUIR:`,'');
-      if(String(digitado||'').trim().toUpperCase()!=='EXCLUIR') return alert('Exclusão cancelada.');
       const btn=document.querySelector('#btnExcluirPermanente'); btn.disabled=true; btn.textContent='Excluindo...';
       try{
         const motivo=(document.querySelector('#motivoExcluirMedicamento')?.value||'Alto custo').trim()||'Alto custo';
