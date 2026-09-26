@@ -14,7 +14,7 @@ painel=async function(c){
   const quantidade=v=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
   const group=set.whatsapp_group_url?`<div class="card ok"><h3>Comunicação dos gestores</h3><p>Seu acesso foi aprovado. Use o botão abaixo para entrar no grupo <b>${esc(set.whatsapp_group_name||'Gestores')}</b>.</p><a class="btn whatsapp" target="_blank" rel="noopener" href="${esc(set.whatsapp_group_url)}">Entrar no grupo do WhatsApp</a></div>`:`<div class="card warn"><h3>Grupo de WhatsApp</h3><p>O administrador ainda não cadastrou o link de convite do grupo.</p></div>`;
   c.innerHTML=`<div class="grid">
-    <div class="card"><div>Pacientes cadastrados</div><div class="stat">${paTotal.count||0}</div></div>\n    <div class="card"><div>Pacientes ativos atuais</div><div class="stat">${pa.count||0}</div></div>
+    <div class="card"><div>Pacientes antes das exclusões</div><div class="stat">153</div></div>\n    <div class="card"><div>Pacientes ativos atuais</div><div class="stat">${pa.count||0}</div></div>
     <div class="card"><div>Prescrições ativas</div><div class="stat">${rx.count||0}</div></div>
     <div class="card"><div>Itens com estoque baixo</div><div class="stat">${baixos}</div></div>
     <div class="card"><div>Medicamentos cadastrados</div><div class="stat">${r.medicamentos_cadastrados||0}</div></div>\n    <div class="card"><div>Medicamentos atuais</div><div class="stat">${medAtuais.count||0}</div></div>
