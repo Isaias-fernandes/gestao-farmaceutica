@@ -1,10 +1,11 @@
 painel=async function(c){
-  const [pa,st,rx,set,resumo]=await Promise.all([
+  const [pa,st,rx,set,resumo,medAtuais]=await Promise.all([
     sb.from('patients').select('id',{count:'exact',head:true}).eq('ativo',true),
     sb.from('stock_summary').select('*'),
     sb.from('prescriptions').select('id',{count:'exact',head:true}).eq('ativa',true),
     getAppSettings(),
-    sb.rpc('painel_resumo_dispensacoes').maybeSingle()
+    sb.rpc('painel_resumo_dispensacoes').maybeSingle(),
+    sb.from('medications').select('id',{count:'exact',head:true}).eq('ativo',true)
   ]);
   if(resumo.error)throw resumo.error;
   const baixos=(st.data||[]).filter(x=>+x.estoque_atual<=+x.estoque_minimo).length;
@@ -15,7 +16,7 @@ painel=async function(c){
     <div class="card"><div>Pacientes ativos</div><div class="stat">${pa.count||0}</div></div>
     <div class="card"><div>Prescrições ativas</div><div class="stat">${rx.count||0}</div></div>
     <div class="card"><div>Itens com estoque baixo</div><div class="stat">${baixos}</div></div>
-    <div class="card"><div>Medicamentos cadastrados</div><div class="stat">${r.medicamentos_cadastrados||0}</div></div>
+    <div class="card"><div>Medicamentos cadastrados</div><div class="stat">${r.medicamentos_cadastrados||0}</div></div>\n    <div class="card"><div>Medicamentos atuais</div><div class="stat">${medAtuais.count||0}</div></div>
     <div class="card"><div>Total de dispensações</div><div class="stat">${r.total_dispensacoes||0}</div></div>
     <div class="card"><div>Medicamentos dispensados hoje</div><div class="stat">${quantidade(r.quantidade_dispensada_hoje)}</div></div>
     <div class="card"><div>Medicamentos dispensados na semana</div><div class="stat">${quantidade(r.quantidade_dispensada_semana)}</div></div>
