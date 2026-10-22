@@ -32,7 +32,7 @@
         <div><label>Quantidade dispensada</label><input class="quantidade" type="number" min="0.01" step="0.01" required></div>
         <div><label>Posologia</label><input class="posologia" placeholder="Ex.: 1 comprimido 2x ao dia"></div></div>
         <button type="button" class="secondary remover">Remover este medicamento</button>
-        ${['admin','gestor'].includes(profile?.role)?'<button type="button" class="danger zerar-saldo">Zerar saldo desta origem</button><p class="small">Use após conferir que o estoque físico desta origem acabou. Escolha estoque sem lote ou um lote específico. O ajuste exige motivo e fica na auditoria.</p>':''}`;
+        ${['admin','gestor'].includes(profile?.role)?'<button type="button" class="secondary retirar-saldo">Retirar quantidade do saldo</button> <button type="button" class="danger zerar-saldo">Zerar todo o saldo desta origem</button><p class="small">Para retirar somente algumas unidades, use Retirar quantidade. Zerar todo o saldo elimina o saldo inteiro da origem selecionada. Escolha estoque sem lote ou um lote específico. Ambos exigem motivo e ficam na auditoria.</p>':''}`;
       container.append(row);
       const med=row.querySelector('.med'),origem=row.querySelector('.origem'),lote=row.querySelector('.lote'),saldo=row.querySelector('.saldo'),validade=row.querySelector('.validade');
       let lotes=[],request=0,ajustando=false;
@@ -63,7 +63,8 @@
       };
       origem.onchange=refresh;lote.onchange=details;
       const zerar=row.querySelector('.zerar-saldo');
-      if(zerar)zerar.onclick=async()=>{
+      const retirar=row.querySelector('.retirar-saldo');
+      async function ajustarSaldo(parcial){
         if(ajustando)return;
         const m=(meds||[]).find(x=>String(x.id)===med.value);
         const sem=origem.value==='sem_lote';
@@ -72,37 +73,47 @@
         if(!m||(!sem&&!l))return alert('Selecione o medicamento e a origem do saldo. Para estoque com lote, selecione também o lote.');
         if(!Number.isFinite(atual)||atual<=0)return alert('Esta origem já está sem saldo.');
         const descricao=sem?'Estoque sem lote':'Lote '+(l.lote||'Sem identificação');
-        const motivo=prompt('Motivo para zerar '+m.nome.trim()+' '+(m.dosagem||'').trim()+' / '+descricao+':\nEx.: estoque físico esgotado após conferência.');
+        let quantidade=atual;
+        if(parcial){
+          const entrada=prompt('Quantidade a retirar de '+m.nome.trim()+' / '+descricao+'?\nSaldo atual: '+atual+'. Exemplo: saldo 3, retirar 2, restará 1.');
+          if(entrada===null)return;
+          quantidade=Number(entrada.trim().replace(',','.'));
+          if(!entrada.trim()||!Number.isFinite(quantidade)||quantidade<=0||quantidade>atual)return alert('Informe uma quantidade maior que zero e menor ou igual ao saldo atual.');
+        }
+        const novoSaldo=Number((atual-quantidade).toFixed(8));
+        const motivo=prompt('Motivo do ajuste de '+m.nome.trim()+' '+(m.dosagem||'').trim()+' / '+descricao+':\nEx.: estoque físico esgotado após conferência.');
         if(motivo===null)return;
         if(!motivo.trim())return alert('Informe o motivo do ajuste.');
-        if(!confirm('Zerar '+atual+' unidade(s) de '+m.nome.trim()+' '+(m.dosagem||'').trim()+'?\nOrigem: '+descricao+'\nConfirme que o estoque físico desta origem está zerado.\nAs demais origens e o histórico serão preservados.'))return;
+        if(!confirm('Retirar '+quantidade+' unidade(s) de '+m.nome.trim()+' '+(m.dosagem||'').trim()+'?\nOrigem: '+descricao+'\nSaldo anterior: '+atual+' | Saldo final: '+novoSaldo+'\nConfira se o saldo final corresponde ao estoque físico.\nAs demais origens e o histórico serão preservados.'))return;
         ajustando=true;
         const controls=[...form.querySelectorAll('input,select,button')];
         const estados=controls.map(el=>el.disabled);
-        controls.forEach(el=>el.disabled=true);zerar.textContent='Zerando...';
+        controls.forEach(el=>el.disabled=true);zerar.textContent='Ajustando...';
         try{
           const {data,error}=await sb.rpc('corrigir_estoque_manual',{
-            p_medication_id:m.id,p_origem:sem?'SEM_LOTE':'LOTE',p_novo_saldo:0,
+            p_medication_id:m.id,p_origem:sem?'SEM_LOTE':'LOTE',p_novo_saldo:novoSaldo,
             p_stock_lot_id:sem?null:l.id,p_motivo:motivo.trim()
           });
           if(error)throw error;
-          if(sem)m.estoque_atual_sem_lote=0;
-          else l.quantidade_atual=0;
+          if(sem)m.estoque_atual_sem_lote=novoSaldo;
+          else l.quantidade_atual=novoSaldo;
           row.querySelector('.quantidade').value='';
           for(const other of container.children){
             if(other.querySelector('.med').value===m.id)other.querySelector('.quantidade').value='';
           }
           // Recarrega os saldos de todas as linhas que utilizam o mesmo medicamento.
           await Promise.all([...container.children].filter(other=>other.querySelector('.med').value===m.id).map(other=>other.querySelector('.med').onchange()));
-          alert('Saldo zerado. Saldo anterior: '+(data?.saldo_anterior??atual)+'. Ajuste registrado na auditoria.');
+          alert('Saldo ajustado de '+(data?.saldo_anterior??atual)+' para '+novoSaldo+'. Ajuste registrado na auditoria.');
         }catch(err){alert('Não foi possível concluir o ajuste: '+(err.message||err));}
         finally{
           controls.forEach((el,i)=>el.disabled=estados[i]);
-          ajustando=false;zerar.textContent='Zerar saldo desta origem';
+          ajustando=false;zerar.textContent='Zerar todo o saldo desta origem';
           container.querySelectorAll('.origem').forEach(el=>el.onchange());
           numberRows();
         }
-      };
+      }
+      if(zerar)zerar.onclick=()=>ajustarSaldo(false);
+      if(retirar)retirar.onclick=()=>ajustarSaldo(true);
 
       row.querySelector('.remover').onclick=()=>{row.remove();numberRows();};
       refresh();numberRows();
@@ -144,3 +155,4 @@
   };
   document.querySelectorAll('nav button[data-page="dispensacao"]').forEach(b=>b.onclick=()=>window.page('dispensacao'));
 })();
+
