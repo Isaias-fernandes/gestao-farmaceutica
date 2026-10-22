@@ -44,11 +44,19 @@
   }
 
   async function pedidosV2(c){
-    const {data:needs,error:en}=await sb
-      .from('purchase_order_needs')
-      .select('*')
-      .order('nome');
-    if(en) throw new Error('Não foi possível carregar o cálculo consolidado do pedido: '+en.message);
+    let needs=[],atualizadoEm='';
+    const assinatura=rows=>JSON.stringify((rows||[]).map(x=>[
+      x.medication_id,x.nome,x.dosagem,x.forma,x.unidade,num(x.necessidade_mensal),
+      num(x.estoque_atual),num(x.pacientes_ativos)
+    ]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
+    async function carregar(){
+      const {data,error}=await sb.from('purchase_order_needs').select('*').order('nome');
+      if(error)throw new Error('Não foi possível atualizar o pedido: '+error.message);
+      const novo=data||[],mudou=assinatura(needs)!==assinatura(novo);
+      needs=novo;atualizadoEm=new Date().toLocaleString('pt-BR');
+      return mudou;
+    }
+    await carregar();
 
     function calcular(meses){
       return (needs||[])
@@ -77,7 +85,7 @@
     c.innerHTML=`
       <div class="card">
         <h2>GESTÃO FARMACÊUTICA — ISAÍAS FERNANDES DE CARVALHO</h2>
-        <h3>Pedido de Medicamentos</h3>
+        <h3>Pedido de Medicamentos</h3><p class="small">Versão 4 - cálculo atualizado antes de gerar ou baixar o pedido.</p>
         <p>O pedido usa somente medicamentos vinculados aos pacientes, soma a necessidade do período e <b>desconta o estoque atual disponível</b> antes de calcular a quantidade a comprar.</p>
         <div class="grid">
           <div><label>Período do pedido</label><select id="mesesPedidoV2"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option></select></div>
@@ -98,13 +106,14 @@
 
     let currentRows=[];
     const render=()=>{
+      document.querySelector('#horaPedidoV2').textContent='Dados consultados em '+atualizadoEm;
       const meses=num(document.querySelector('#mesesPedidoV2').value)||1;
       currentRows=calcular(meses).map((x,n)=>({...x,n}));
       const necessidadeTotal=currentRows.reduce((s,x)=>s+x.necessidade,0);
       const estoqueTotal=currentRows.reduce((s,x)=>s+x.estoque,0);
       const pedidoTotal=currentRows.reduce((s,x)=>s+x.quantidade,0);
       document.querySelector('#resumoPedidoV2').innerHTML=`Itens para comprar: <b>${currentRows.length}</b> · Necessidade: <b>${necessidadeTotal.toFixed(2)}</b> · Estoque descontado: <b>${estoqueTotal.toFixed(2)}</b> · Quantidade final do pedido: <b>${pedidoTotal.toFixed(2)}</b>`;
-      document.querySelector('#tabelaPedidoV2').innerHTML=currentRows.length?`<div style="overflow-x:auto"><table><tr><th>Incluir</th><th>Nome do medicamento</th><th>Dosagem / Concentração</th><th>Forma farmacêutica</th><th>Necessidade</th><th>Estoque atual</th><th>Quantidade a pedir</th></tr>${currentRows.map(x=>`<tr><td><input type="checkbox" name="inc_${x.n}" checked></td><td>${safeEsc(x.nome)}</td><td>${safeEsc(x.dosagem)}</td><td>${safeEsc(x.forma)}</td><td>${x.necessidade.toFixed(2)}</td><td>${x.estoque.toFixed(2)}</td><td><input type="number" min="0" step="${unidadeInteira(x.unidade)?'1':'0.01'}" name="q_${x.n}" value="${x.quantidade}"></td></tr>`).join('')}</table></div>`:'<div class="ok">O estoque atual cobre toda a necessidade cadastrada para este período.</div>';
+      document.querySelector('#tabelaPedidoV2').innerHTML=currentRows.length?`<div style="overflow-x:auto"><table><tr><th>Incluir</th><th>Nome do medicamento</th><th>Dosagem / Concentração</th><th>Forma farmacêutica</th><th>Necessidade no período</th><th>Saldo disponível em estoque</th><th>Quantidade a comprar</th></tr>${currentRows.map(x=>`<tr><td><input type="checkbox" name="inc_${x.n}" checked></td><td>${safeEsc(x.nome)}</td><td>${safeEsc(x.dosagem)}</td><td>${safeEsc(x.forma)}</td><td>${x.necessidade.toFixed(2)}</td><td>${x.estoque.toFixed(2)}</td><td><input type="number" min="0" step="${unidadeInteira(x.unidade)?'1':'0.01'}" name="q_${x.n}" value="${x.quantidade}"></td></tr>`).join('')}</table></div>`:'<div class="ok">O estoque atual cobre toda a necessidade cadastrada para este período.</div>';
     };
 
     const selecionados=()=>{
@@ -112,23 +121,43 @@
       return currentRows.filter(x=>fd.get(`inc_${x.n}`)).map(x=>({...x,quantidade:arredondar(fd.get(`q_${x.n}`),x.unidade)})).filter(x=>x.quantidade>0);
     };
 
-    document.querySelector('#mesesPedidoV2').onchange=render;
-    document.querySelector('#baixarPedidoV2').onclick=()=>{
+    let ocupado=false;
+    async function atualizar(){
+      if(ocupado)return;
+      ocupado=true;
+      const btn=document.querySelector('#atualizarPedidoV2');btn.disabled=true;
+      try{await carregar();render();}catch(err){alert(err.message||err);}
+      finally{ocupado=false;btn.disabled=false;}
+    }
+    async function conferirAtualizacao(){
+      const mudou=await carregar();
+      document.querySelector('#horaPedidoV2').textContent='Dados consultados em '+atualizadoEm;
+      if(mudou){render();alert('O estoque ou os cadastros mudaram. O pedido foi recalculado. Confira as quantidades e confirme novamente.');return false;}
+      return true;
+    }
+    document.querySelector('#atualizarPedidoV2').onclick=atualizar;
+    document.querySelector('#mesesPedidoV2').onchange=atualizar;
+    document.querySelector('#baixarPedidoV2').onclick=async()=>{
+      if(ocupado)return;ocupado=true;
       try{
+        if(!await conferirAtualizacao())return;
         const rows=selecionados();
         if(!rows.length) return alert('Selecione pelo menos um medicamento com quantidade maior que zero.');
         exportarXlsx(rows);
       }catch(err){alert(err.message||err);}
+      finally{ocupado=false;}
     };
 
     document.querySelector('#pedidoFormV2').onsubmit=async e=>{
       e.preventDefault();
-      const rows=selecionados();
-      if(!rows.length) return alert('Selecione pelo menos um medicamento com quantidade maior que zero.');
+      if(ocupado)return;
       if(!['admin','gestor'].includes(profile?.role)) return alert('Somente administrador ou gestor pode gravar pedidos no sistema.');
       const btn=e.target.querySelector('button[type="submit"]');
-      btn.disabled=true;btn.textContent='Gerando pedido...';
+      ocupado=true;btn.disabled=true;btn.textContent='Gerando pedido...';
       try{
+        if(!await conferirAtualizacao())return;
+        const rows=selecionados();
+        if(!rows.length)return alert('Selecione pelo menos um medicamento com quantidade maior que zero.');
         const meses=num(document.querySelector('#mesesPedidoV2').value)||1;
         const fd=new FormData(e.target);
         const obs=limpar(fd.get('obs')||'');
@@ -138,12 +167,12 @@
         const itens=rows.map(x=>({order_id:pedido.id,medication_id:x.medication_id,estoque_no_momento:x.estoque,quantidade_sugerida:x.quantidade,quantidade_pedida:x.quantidade}));
         const {error:ei}=await sb.from('purchase_order_items').insert(itens);
         if(ei) throw ei;
-        exportarXlsx(rows);
+        try{exportarXlsx(rows);}catch(erroExcel){alert('Pedido salvo no sistema. O Excel não pôde ser baixado. Use Baixar Excel para tentar novamente, sem gerar outro pedido. '+erroExcel.message);return;}
         alert('Pedido gerado com sucesso e Excel criado. O saldo de estoque foi usado apenas no cálculo e não foi baixado do estoque.');
       }catch(err){
         alert('Erro ao gerar pedido: '+(err?.message||err));
       }finally{
-        btn.disabled=false;btn.textContent='Gerar pedido e baixar Excel';
+        ocupado=false;btn.disabled=false;btn.textContent='Gerar pedido e baixar Excel';
       }
     };
 
