@@ -87,6 +87,8 @@
         <h2>GESTÃO FARMACÊUTICA — ISAÍAS FERNANDES DE CARVALHO</h2>
         <h3>Pedido de Medicamentos</h3><p class="small">Versão 4 - cálculo atualizado antes de gerar ou baixar o pedido.</p>
         <p>O pedido usa somente medicamentos vinculados aos pacientes, soma a necessidade do período e <b>desconta o estoque atual disponível</b> antes de calcular a quantidade a comprar.</p>
+        <button type="button" id="atualizarPedidoV2" class="secondary">Atualizar estoque e necessidade</button>
+        <p id="horaPedidoV2" class="small" aria-live="polite"></p>
         <div class="grid">
           <div><label>Período do pedido</label><select id="mesesPedidoV2"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option></select></div>
           <div><label>Regra de cálculo</label><div class="pill">Necessidade dos pacientes − estoque atual</div></div>
