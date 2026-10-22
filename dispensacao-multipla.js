@@ -64,7 +64,7 @@
       origem.onchange=refresh;lote.onchange=details;
       const zerar=row.querySelector('.zerar-saldo');
       const retirar=row.querySelector('.retirar-saldo');
-      async function ajustarSaldo(parcial){
+      function ajustarSaldo(parcial){
         if(ajustando)return;
         const m=(meds||[]).find(x=>String(x.id)===med.value);
         const sem=origem.value==='sem_lote';
@@ -73,18 +73,40 @@
         if(!m||(!sem&&!l))return alert('Selecione o medicamento e a origem do saldo. Para estoque com lote, selecione também o lote.');
         if(!Number.isFinite(atual)||atual<=0)return alert('Esta origem já está sem saldo.');
         const descricao=sem?'Estoque sem lote':'Lote '+(l.lote||'Sem identificação');
-        let quantidade=atual;
-        if(parcial){
-          const entrada=prompt('Quantidade a retirar de '+m.nome.trim()+' / '+descricao+'?\nSaldo atual: '+atual+'. Exemplo: saldo 3, retirar 2, restará 1.');
-          if(entrada===null)return;
-          quantidade=Number(entrada.trim().replace(',','.'));
-          if(!entrada.trim()||!Number.isFinite(quantidade)||quantidade<=0||quantidade>atual)return alert('Informe uma quantidade maior que zero e menor ou igual ao saldo atual.');
+        if(row.querySelector('.ajuste-editor'))return;
+        const editor=document.createElement('div');
+        editor.className='ajuste-editor warn';
+        editor.innerHTML=`<h3>${parcial?'Retirar parte do estoque':'Zerar todo o saldo'}</h3>
+          <p>${esc(m.nome)} ${esc(m.dosagem||'')} - ${esc(descricao)}</p>
+          <p>Saldo atual: <b>${atual}</b></p>
+          <label>Quantidade a retirar</label><input class="ajuste-quantidade" type="number" min="0.01" step="0.01" max="${atual}" value="${parcial?'':atual}" ${parcial?'':'readonly'}>
+          <p class="ajuste-previa" aria-live="polite">Informe a quantidade a retirar.</p>
+          <label>Motivo do ajuste</label><input class="ajuste-motivo" placeholder="Ex.: diferença após conferência física">
+          <p class="ajuste-erro" role="alert"></p>
+          <button type="button" class="ajuste-confirmar">Confirmar ajuste de estoque</button>
+          <button type="button" class="secondary ajuste-cancelar">Cancelar</button>`;
+        row.append(editor);
+        const qtd=editor.querySelector('.ajuste-quantidade'),mot=editor.querySelector('.ajuste-motivo'),previa=editor.querySelector('.ajuste-previa'),erro=editor.querySelector('.ajuste-erro');
+        const medId=m.id,lotId=sem?null:l.id;
+        const selecionado=()=>med.value===medId&&(origem.value==='sem_lote')===sem&&(sem||lote.value===lotId);
+        const fechar=()=>editor.remove();
+        editor.querySelector('.ajuste-cancelar').onclick=fechar;
+        function calcular(){
+          const quantidade=Number(qtd.value);
+          const valido=qtd.value.trim()!==''&&Number.isFinite(quantidade)&&quantidade>0&&quantidade<=atual;
+          const novoSaldo=valido?Number((atual-quantidade).toFixed(8)):null;
+          previa.textContent=valido?'Retirar '+quantidade+' | Saldo final: '+novoSaldo:'Informe uma quantidade maior que zero e menor ou igual a '+atual+'.';
+          return {quantidade,novoSaldo,valido};
         }
-        const novoSaldo=Number((atual-quantidade).toFixed(8));
-        const motivo=prompt('Motivo do ajuste de '+m.nome.trim()+' '+(m.dosagem||'').trim()+' / '+descricao+':\nEx.: estoque físico esgotado após conferência.');
-        if(motivo===null)return;
-        if(!motivo.trim())return alert('Informe o motivo do ajuste.');
-        if(!confirm('Retirar '+quantidade+' unidade(s) de '+m.nome.trim()+' '+(m.dosagem||'').trim()+'?\nOrigem: '+descricao+'\nSaldo anterior: '+atual+' | Saldo final: '+novoSaldo+'\nConfira se o saldo final corresponde ao estoque físico.\nAs demais origens e o histórico serão preservados.'))return;
+        qtd.oninput=calcular;calcular();qtd.focus();
+        editor.querySelector('.ajuste-confirmar').onclick=async()=>{
+        if(ajustando)return;
+        erro.textContent='';
+        if(!selecionado()){fechar();return alert('O medicamento ou a origem mudou. Abra o ajuste novamente.');}
+        const {novoSaldo,valido}=calcular();
+        const motivo=mot.value.trim();
+        if(!valido){erro.textContent='Confira a quantidade a retirar.';return;}
+        if(!motivo){erro.textContent='Informe o motivo do ajuste.';mot.focus();return;}
         ajustando=true;
         const controls=[...form.querySelectorAll('input,select,button')];
         const estados=controls.map(el=>el.disabled);
@@ -92,7 +114,7 @@
         try{
           const {data,error}=await sb.rpc('corrigir_estoque_manual',{
             p_medication_id:m.id,p_origem:sem?'SEM_LOTE':'LOTE',p_novo_saldo:novoSaldo,
-            p_stock_lot_id:sem?null:l.id,p_motivo:motivo.trim()
+            p_stock_lot_id:sem?null:l.id,p_motivo:motivo
           });
           if(error)throw error;
           if(sem)m.estoque_atual_sem_lote=novoSaldo;
@@ -101,16 +123,18 @@
           for(const other of container.children){
             if(other.querySelector('.med').value===m.id)other.querySelector('.quantidade').value='';
           }
+          fechar();
           // Recarrega os saldos de todas as linhas que utilizam o mesmo medicamento.
           await Promise.all([...container.children].filter(other=>other.querySelector('.med').value===m.id).map(other=>other.querySelector('.med').onchange()));
           alert('Saldo ajustado de '+(data?.saldo_anterior??atual)+' para '+novoSaldo+'. Ajuste registrado na auditoria.');
-        }catch(err){alert('Não foi possível concluir o ajuste: '+(err.message||err));}
+        }catch(err){erro.textContent='Não foi possível concluir o ajuste: '+(err.message||err);}
         finally{
           controls.forEach((el,i)=>el.disabled=estados[i]);
           ajustando=false;zerar.textContent='Zerar todo o saldo desta origem';
           container.querySelectorAll('.origem').forEach(el=>el.onchange());
           numberRows();
         }
+        };
       }
       if(zerar)zerar.onclick=()=>ajustarSaldo(false);
       if(retirar)retirar.onclick=()=>ajustarSaldo(true);
