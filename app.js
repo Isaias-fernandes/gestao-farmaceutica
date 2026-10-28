@@ -105,7 +105,7 @@ async function medicamentos(c){
   const textoOrdenacao=v=>String(v??'').normalize('NFKC').replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
   const ordemMedicamentos=new Intl.Collator('pt-BR',{sensitivity:'base',numeric:true});
   const rows=(data||[]).slice().sort((a,b)=>ordemMedicamentos.compare(textoOrdenacao(a.nome),textoOrdenacao(b.nome))||ordemMedicamentos.compare(textoOrdenacao(a.dosagem),textoOrdenacao(b.dosagem))||ordemMedicamentos.compare(textoOrdenacao(a.forma),textoOrdenacao(b.forma)));
-  c.innerHTML=`${can?`<div class="card"><h2 id="medFormTitle">Novo medicamento</h2><p class="small">Cadastre o medicamento de forma padronizada. Use <b>Corrigir</b> para alterar um cadastro já existente. A opção <b>Excluir</b> desativa o medicamento sem apagar o histórico de estoque, prescrições, dispensações e pedidos.</p><form id="fm" class="grid"><input type="hidden" name="id"><div><label>Nome</label><input name="nome" required placeholder="Ex.: Losartana"></div><div><label>Dosagem</label><input name="dosagem" placeholder="Ex.: 50 mg"></div><div><label>Forma farmacêutica</label><select name="forma" required><option value="">Selecione...</option>${formas.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div><label>Unidade de estoque</label><select name="unidade" required><option value="">Selecione...</option>${unidades.map(v=>`<option value="${v}">${v}</option>`).join('')}</select><div class="small">Escolha como o medicamento será contado: comprimido, cápsula, frasco, ampola, unidade etc.</div></div><div><label>Apresentação</label><input name="apresentacao" placeholder="Ex.: Frasco 100 mL / Comprimido 50 mg"></div><div><label>Estoque mínimo</label><input name="estoque_minimo" type="number" min="0" step="0.01" value="0"></div><div><label>Estoque ideal</label><input name="estoque_ideal" type="number" min="0" step="0.01" value="0"></div><div><button id="medSubmit">Salvar medicamento</button> <button type="button" id="cancelMedEdit" class="secondary hidden">Cancelar correção</button></div></form></div>`:''}<div class="card"><h2>Medicamentos</h2><table><tr><th>Nome</th><th>Dosagem</th><th>Forma</th><th>Unidade de estoque</th><th>Apresentação</th><th>Mínimo</th><th>Ideal</th><th>Status</th>${can?'<th>Ações</th>':''}</tr>${rows.map(x=>`<tr><td>${esc(x.nome)}</td><td>${esc(x.dosagem||'')}</td><td>${esc(x.forma||'')}</td><td>${esc(x.unidade||'')}</td><td>${esc(x.apresentacao||'')}</td><td>${x.estoque_minimo??0}</td><td>${x.estoque_ideal??0}</td><td>${x.ativo===false?'<span class="pill">Inativo</span>':'Ativo'}</td>${can?`<td><button type="button" class="secondary editMed" data-id="${x.id}">Corrigir</button> ${x.ativo===false?`<button type="button" class="reactivateMed" data-id="${x.id}">Reativar</button>`:`<button type="button" class="danger deactivateMed" data-id="${x.id}">Excluir</button>`}</td>`:''}</tr>`).join('')}</table></div>`;
+  c.innerHTML=`${can?`<div class="card"><h2 id="medFormTitle">Novo medicamento</h2><p class="small">Cadastre o medicamento de forma padronizada. Use <b>Corrigir</b> para alterar um cadastro já existente. <b>Excluir</b> retira o medicamento do uso operacional e preserva o histórico. <b>Apagar cadastro</b> remove definitivamente apenas medicamentos sem vínculos ou movimentações.</p><form id="fm" class="grid"><input type="hidden" name="id"><div><label>Nome</label><input name="nome" required placeholder="Ex.: Losartana"></div><div><label>Dosagem</label><input name="dosagem" placeholder="Ex.: 50 mg"></div><div><label>Forma farmacêutica</label><select name="forma" required><option value="">Selecione...</option>${formas.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div><label>Unidade de estoque</label><select name="unidade" required><option value="">Selecione...</option>${unidades.map(v=>`<option value="${v}">${v}</option>`).join('')}</select><div class="small">Escolha como o medicamento será contado: comprimido, cápsula, frasco, ampola, unidade etc.</div></div><div><label>Apresentação</label><input name="apresentacao" placeholder="Ex.: Frasco 100 mL / Comprimido 50 mg"></div><div><label>Estoque mínimo</label><input name="estoque_minimo" type="number" min="0" step="0.01" value="0"></div><div><label>Estoque ideal</label><input name="estoque_ideal" type="number" min="0" step="0.01" value="0"></div><div><button id="medSubmit">Salvar medicamento</button> <button type="button" id="cancelMedEdit" class="secondary hidden">Cancelar correção</button></div></form></div>`:''}<div class="card"><h2>Medicamentos</h2><table><tr><th>Nome</th><th>Dosagem</th><th>Forma</th><th>Unidade de estoque</th><th>Apresentação</th><th>Mínimo</th><th>Ideal</th><th>Status</th>${can?'<th>Ações</th>':''}</tr>${rows.map(x=>`<tr><td>${esc(x.nome)}</td><td>${esc(x.dosagem||'')}</td><td>${esc(x.forma||'')}</td><td>${esc(x.unidade||'')}</td><td>${esc(x.apresentacao||'')}</td><td>${x.estoque_minimo??0}</td><td>${x.estoque_ideal??0}</td><td>${x.ativo===false?'<span class="pill">Inativo</span>':'Ativo'}</td>${can?`<td><button type="button" class="secondary editMed" data-id="${x.id}">Corrigir</button> ${x.ativo===false?`<button type="button" class="reactivateMed" data-id="${x.id}">Reativar</button>`:`<button type="button" class="danger deactivateMed" data-id="${x.id}">Excluir</button>`} <button type="button" class="danger deleteMedRecord" data-id="${x.id}">Apagar cadastro</button></td>`:''}</tr>`).join('')}</table></div>`;
   if(!can)return;
   const form=$('#fm');
   const resetForm=()=>{form.reset();form.elements.id.value='';form.elements.estoque_minimo.value='0';form.elements.estoque_ideal.value='0';$('#medFormTitle').textContent='Novo medicamento';$('#medSubmit').textContent='Salvar medicamento';$('#cancelMedEdit').classList.add('hidden')};
@@ -113,6 +113,40 @@ async function medicamentos(c){
   document.querySelectorAll('.editMed').forEach(b=>b.onclick=()=>{const x=rows.find(m=>m.id===b.dataset.id);if(!x)return;form.elements.id.value=x.id;form.elements.nome.value=x.nome||'';form.elements.dosagem.value=x.dosagem||'';form.elements.forma.value=x.forma||'';form.elements.unidade.value=x.unidade||'';form.elements.apresentacao.value=x.apresentacao||'';form.elements.estoque_minimo.value=x.estoque_minimo??0;form.elements.estoque_ideal.value=x.estoque_ideal??0;$('#medFormTitle').textContent='Corrigir medicamento';$('#medSubmit').textContent='Salvar correção';$('#cancelMedEdit').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})});
   $('#cancelMedEdit').onclick=resetForm;
   document.querySelectorAll('.deactivateMed').forEach(b=>b.onclick=async()=>{const x=rows.find(m=>m.id===b.dataset.id);if(!x)return;if(!confirm(`Excluir ${x.nome} do uso operacional?\n\nEle sairá automaticamente da lista dos pacientes e dos novos pedidos. O histórico de dispensações será preservado e a exclusão entrará no relatório com o motivo Alto custo.`))return;b.disabled=true;const oldText=b.textContent;b.textContent='Excluindo...';try{const {data,error}=await sb.rpc('excluir_medicamento_permanente',{p_medication_id:x.id,p_motivo:'Alto custo'});if(error)throw error;alert(`Medicamento ${data?.nome||x.nome} excluído do uso operacional. ${data?.vinculos_pacientes_desativados||0} vínculo(s) com paciente(s) foram retirados. Histórico preservado.`);await page('medicamentos')}catch(e){alert('Não foi possível excluir: '+(e?.message||String(e)))}finally{b.disabled=false;b.textContent=oldText}});
+  document.querySelectorAll('.deleteMedRecord').forEach(b=>b.onclick=async()=>{
+    const x=rows.find(m=>m.id===b.dataset.id);if(!x)return;
+    if(!confirm(`Apagar definitivamente o cadastro de ${x.nome}?
+
+Isto só será permitido se não houver vínculo com pacientes, prescrições, dispensações, pedidos ou lotes. Essa ação não pode ser desfeita.`))return;
+    const digitado=prompt(`Para confirmar, digite exatamente o nome do medicamento:
+${x.nome}`);
+    if(digitado!==x.nome)return alert('Nome não confirmado. O cadastro foi mantido.');
+    const referencias=[
+      ['patient_medications','vínculos com pacientes'],
+      ['prescription_items','prescrições'],
+      ['dispensation_items','dispensações'],
+      ['purchase_order_items','pedidos'],
+      ['stock_lots','lotes/estoque']
+    ];
+    b.disabled=true;const textoOriginal=b.textContent;b.textContent='Verificando...';
+    try{
+      const verificacoes=await Promise.all(referencias.map(([tabela])=>sb.from(tabela).select('id',{count:'exact',head:true}).eq('medication_id',x.id)));
+      const bloqueios=[];
+      for(let i=0;i<verificacoes.length;i++){
+        const resultado=verificacoes[i];
+        if(resultado.error)throw new Error(`Não foi possível verificar ${referencias[i][1]}. Nenhum dado foi apagado. ${resultado.error.message}`);
+        if((resultado.count||0)>0)bloqueios.push(`${resultado.count} registro(s) de ${referencias[i][1]}`);
+      }
+      if(bloqueios.length)throw new Error('O cadastro não pode ser apagado porque há histórico ou vínculos: '+bloqueios.join(', ')+'. Use “Excluir” para retirar o medicamento do uso operacional sem apagar o histórico.');
+      b.textContent='Apagando...';
+      const {data,error}=await sb.from('medications').delete().eq('id',x.id).select('id');
+      if(error)throw error;
+      if(!data?.length)throw new Error('O cadastro não foi apagado. Verifique se sua conta tem permissão para essa ação.');
+      alert(`O cadastro de ${x.nome} foi apagado.`);
+      await page('medicamentos');
+    }catch(e){alert('Não foi possível apagar o cadastro: '+(e?.message||String(e)));}
+    finally{b.disabled=false;b.textContent=textoOriginal;}
+  });
   document.querySelectorAll('.reactivateMed').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('medications').update({ativo:true}).eq('id',b.dataset.id);if(error)alert(error.message);else page('medicamentos')});
 }
 async function estoque(c){
