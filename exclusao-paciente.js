@@ -1,45 +1,47 @@
 (function(){
   function addButtons(){
-    document.querySelectorAll('.reactivatePatient').forEach(reactivate=>{
-      const row=reactivate.closest('tr');
-      if(!row||row.querySelector('.deleteInactivePatient'))return;
+    document.querySelectorAll('.deactivatePatient, .reactivatePatient').forEach(statusButton=>{
+      const row=statusButton.closest('tr');
+      if(!row)return;
       const name=(row.cells?.[0]?.textContent||'').trim();
+      const actions=row.cells?.[row.cells.length-1];
       if(name==='[PACIENTE EXCLUÍDO]'){
-        reactivate.remove();
-        const actions=row.cells?.[row.cells.length-1];
+        statusButton.remove();
         if(actions)actions.textContent='Dados pessoais excluídos';
         return;
       }
+      if(row.querySelector('.deletePatientPermanent'))return;
       const button=document.createElement('button');
       button.type='button';
-      button.className='danger deleteInactivePatient';
-      button.dataset.id=reactivate.dataset.id;
+      button.className='danger deletePatientPermanent';
+      button.dataset.id=statusButton.dataset.id;
       button.dataset.name=name;
-      button.textContent='Excluir permanentemente';
-      reactivate.insertAdjacentText('afterend',' ');
-      reactivate.insertAdjacentElement('afterend',button);
+      button.textContent='Apagar cadastro definitivo';
+      statusButton.insertAdjacentText('afterend',' ');
+      statusButton.insertAdjacentElement('afterend',button);
     });
   }
 
   document.addEventListener('click',async event=>{
-    const button=event.target.closest('.deleteInactivePatient');
+    const button=event.target.closest('.deletePatientPermanent');
     if(!button)return;
     const name=button.dataset.name||'este paciente';
-    const confirmed=confirm(`Excluir permanentemente os dados pessoais de ${name}?\n\nEsta ação não poderá ser desfeita. O nome e os demais dados pessoais serão apagados, e a lista atual de medicamentos desse paciente será removida.\n\nO cadastro geral de medicamentos, o estoque, os lotes e o histórico de dispensações NÃO serão alterados.`);
+    const confirmed=confirm(`Apagar definitivamente o cadastro de ${name}?\n\nOs dados pessoais e os vínculos atuais com medicamentos serão removidos da lista de cadastro. Esta ação não pode ser desfeita.\n\nO histórico de dispensações e prescrições será mantido para rastreabilidade.`);
     if(!confirmed)return;
     button.disabled=true;
-    button.textContent='Excluindo...';
+    button.textContent='Apagando...';
     const {data,error}=await sb.rpc('excluir_paciente_inativo_permanente',{p_patient_id:button.dataset.id});
     if(error){
       button.disabled=false;
-      button.textContent='Excluir permanentemente';
-      alert('Não foi possível excluir os dados do paciente: '+error.message);
+      button.textContent='Apagar cadastro definitivo';
+      alert('Não foi possível apagar o cadastro: '+error.message);
       return;
     }
-    alert(`Dados pessoais excluídos com sucesso. ${data?.vinculos_medicamentos_removidos||0} vínculo(s) da lista de medicamentos foram removidos. O histórico de dispensações foi preservado.`);
+    alert(`Cadastro removido da lista. ${data?.vinculos_medicamentos_removidos||0} vínculo(s) com medicamentos foram removidos. O histórico de dispensações e prescrições foi preservado.`);
     page('pacientes');
   });
 
-  new MutationObserver(addButtons).observe(document.getElementById('content'),{childList:true,subtree:true});
+  const content=document.getElementById('content');
+  if(content)new MutationObserver(addButtons).observe(content,{childList:true,subtree:true});
   addButtons();
 })();
